@@ -372,6 +372,17 @@ export interface ConsumedMessage<T extends Topic = Topic> {
 
 export type MessageHandler<T extends Topic = Topic> = (message: ConsumedMessage<T>) => Promise<void> | void;
 
+/**
+ * Handler for batch-mode consumption (`SdkConsumer.subscribeBatch`).
+ *
+ * Receives every message in one Kafka batch at once, so a sink can write them in
+ * a single round trip. Offsets resolve only after this resolves — throwing means
+ * the whole batch is redelivered rather than silently skipped.
+ */
+export type BatchHandler<T extends Topic = Topic> = (
+  messages: ConsumedMessage<T>[],
+) => Promise<void> | void;
+
 export interface Serializer<T = unknown> {
   serialize(data: T): Buffer;
   deserialize(buffer: Buffer): T;
