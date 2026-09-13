@@ -1,5 +1,6 @@
 export { KafkaClient } from './client';
 export { SdkProducer } from './producer';
+export { KafkaProducerError, readKafkaErrorFields } from './errors';
 export { SdkConsumer } from './consumer';
 export { EventEmitter } from './event-emitter';
 export { JsonSerializer } from './serializers';
@@ -13,6 +14,7 @@ export {
   EVENT_HEADER_OCCURRED_AT,
   EVENT_HEADER_SCHEMA_VERSION,
 } from './envelope';
+export type { KafkaProducerOperation } from './errors';
 export type { Logger } from './logger';
 export type { EmitOptions } from './event-emitter';
 export type { EventEnvelope } from './envelope';

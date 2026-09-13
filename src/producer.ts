@@ -2,6 +2,7 @@ import { Producer } from 'kafkajs';
 import { ProducerMessage, Serializer, Topic, TopicDataMap } from './types';
 import { JsonSerializer } from './serializers';
 import { Logger, noopLogger } from './logger';
+import { KafkaProducerError } from './errors';
 
 export class SdkProducer {
   private producer: Producer;
@@ -23,7 +24,10 @@ export class SdkProducer {
       this.logger.error('Failed to connect producer', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to connect producer: ${error instanceof Error ? error.message : error}`);
+      throw new KafkaProducerError(
+        `Failed to connect producer: ${error instanceof Error ? error.message : error}`,
+        { operation: 'connect', cause: error },
+      );
     }
   }
 
@@ -36,7 +40,10 @@ export class SdkProducer {
       this.logger.error('Failed to disconnect producer', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to disconnect producer: ${error instanceof Error ? error.message : error}`);
+      throw new KafkaProducerError(
+        `Failed to disconnect producer: ${error instanceof Error ? error.message : error}`,
+        { operation: 'disconnect', cause: error },
+      );
     }
   }
 
@@ -59,7 +66,15 @@ export class SdkProducer {
         topic,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to send message to ${topic}: ${error instanceof Error ? error.message : error}`);
+      // ⚠️ THE MESSAGE IS UNCHANGED; the CAUSE is what is new. `ybc-balance-api`'s
+      // outbox has to tell "the cluster is unwell" from "this frame is
+      // unsendable", and the bare `Error` this used to throw left it matching on
+      // message text — which real KafkaJS protocol errors do not contain. See
+      // `errors.ts`.
+      throw new KafkaProducerError(
+        `Failed to send message to ${topic}: ${error instanceof Error ? error.message : error}`,
+        { operation: 'send', topic, cause: error },
+      );
     }
   }
 
@@ -81,7 +96,10 @@ export class SdkProducer {
         messageCount: messages.length,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to send batch to ${topic}: ${error instanceof Error ? error.message : error}`);
+      throw new KafkaProducerError(
+        `Failed to send batch to ${topic}: ${error instanceof Error ? error.message : error}`,
+        { operation: 'sendBatch', topic, cause: error },
+      );
     }
   }
 }
