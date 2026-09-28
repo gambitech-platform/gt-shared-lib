@@ -3,9 +3,14 @@ import { JsonSerializer } from '../src/serializers';
 import type { RegisterData } from '../src/types';
 
 describe('RegisterData full-mirror contract', () => {
-  // A fully-populated RegisterData carrying every casino User field. If a field
-  // is removed/renamed in the interface this object stops type-checking, so the
-  // build (and `vitest run`, which type-checks via ts) acts as the shape guard.
+  // A fully-populated RegisterData carrying every PUBLISHABLE casino User field.
+  //
+  // ⚠️ It deliberately carries NO secrets. The seven banned keys (password,
+  // twoFactorSecret, twoFactorVerifyOtp, forgotPasswordToken, verifyAccountToken,
+  // provablyFairServerSeed, provablyFairNextServerSeed) are `?: never` on the
+  // interface; the explicit absence test below is the guard that actually runs,
+  // because `tsconfig.json` includes only `src` and vitest transpiles without
+  // type-checking — so a type-level ban alone would never fail this suite.
   const full: RegisterData = {
     // existing 9
     memberId: 1,
@@ -22,7 +27,6 @@ describe('RegisterData full-mirror contract', () => {
     fireblocksVaultId: 'vault-1',
     referralCode: 'REF1',
     walletAddress: '0xabc',
-    password: '$2b$10$hash',
     role: 'CLIENT',
     firstName: 'Alice',
     lastName: 'Smith',
@@ -35,20 +39,15 @@ describe('RegisterData full-mirror contract', () => {
     gender: 'f',
     isActive: 1,
     isVerified: 0,
-    verifyAccountToken: 'tok',
     docType: 'passport',
-    twoFactorSecret: 'secret',
     twoFactorEnabled: 0,
     kycVerified: 1,
-    forgotPasswordToken: null,
     frontIdentityMediaId: null,
     backIdentityMediaId: null,
     ghostModeEnabled: false,
     fiatView: true,
     hideZeroBalance: false,
     emailMarketing: true,
-    twoFactorVerifyOtp: '',
-    twoFactorType: 'EMAIL',
     isAffiliatePartner: false,
     earlyAccessCode: null,
     tier: 'unranked',
@@ -102,9 +101,7 @@ describe('RegisterData full-mirror contract', () => {
     loyaltyWeeklyBonusAmount: 0,
     loyaltyMonthlyBonusAmount: 0,
     provablyFairClientSeed: '',
-    provablyFairServerSeed: '',
     provablyFairCurrentNonce: 0,
-    provablyFairNextServerSeed: '',
     bonusCouponAmountUSD: 0,
     levelUpTempBonus: 0,
     selfExclusionTill: new Date('2000-01-01T00:00:01.000Z').toISOString(),
@@ -112,8 +109,6 @@ describe('RegisterData full-mirror contract', () => {
     bannedReason: null,
     geoBlockDisabled: false,
     randomIpEnabled: false,
-    disabledUntil: null,
-    passwordUpdatedAt: null,
     updatedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
     metamaskAddress: null,
     telegramId: null,
@@ -138,6 +133,48 @@ describe('RegisterData full-mirror contract', () => {
       clientId: full.clientId,
     };
     expect(minimal.memberId).toBe(2);
+  });
+
+  it('carries NO credential or unrevealed-seed field', () => {
+    // The contract this whole interface exists to keep: ybc-segmentation-api
+    // persists every consumed event verbatim into an append-only audit store, so
+    // a secret published here can never be taken back.
+    const banned = [
+      'password',
+      'twoFactorSecret',
+      'twoFactorVerifyOtp',
+      'forgotPasswordToken',
+      'verifyAccountToken',
+      'provablyFairServerSeed',
+      'provablyFairNextServerSeed',
+    ];
+    const roundtripped = new JsonSerializer<RegisterData>().deserialize(
+      new JsonSerializer<RegisterData>().serialize(full),
+    ) as Record<string, unknown>;
+
+    for (const key of banned) {
+      expect(Object.prototype.hasOwnProperty.call(full, key)).toBe(false);
+      // Compare parsed KEYS, not the raw JSON text — the substring "password"
+      // appears inside legitimate field names.
+      expect(Object.keys(roundtripped)).not.toContain(key);
+    }
+
+    // The non-secret half of the fairness pair is still published: the player is
+    // shown both of these verbatim, so they are not secrets.
+    expect(full.provablyFairClientSeed).toBeDefined();
+    expect(full.provablyFairCurrentNonce).toBeDefined();
+  });
+
+  /**
+   * ⚠️ The Phase-2 column retirement: `two_factor_type`, `disabled_until` and
+   * `password_updated_at` were dropped from casino-api's `members`, so the
+   * mirror must stop carrying them. Pinned as ABSENT rather than null so a
+   * re-add is a visible failure, not a field that silently never populates.
+   */
+  it('no longer carries the retired casino-api columns', () => {
+    for (const key of ['twoFactorType', 'disabledUntil', 'passwordUpdatedAt']) {
+      expect(Object.prototype.hasOwnProperty.call(full, key)).toBe(false);
+    }
   });
 
   it('carries the big/decimal mirror fields as strings (JSON-safe)', () => {

@@ -77,6 +77,37 @@ export interface LogoutData {
   clientId: string;
 }
 
+/**
+ * Full member mirror published on `member-event.register` / `member-event.update`.
+ *
+ * ⚠️ CREDENTIALS ARE FORBIDDEN IN THIS PAYLOAD. ybc-segmentation-api writes every
+ * consumed event verbatim into the APPEND-ONLY `event_logs` audit store and into
+ * its `members` projection, so anything here becomes durable secret material in a
+ * second service's database — the hardest place on the platform to unpublish from.
+ * `password`, `twoFactorSecret`, `twoFactorVerifyOtp`, `forgotPasswordToken` and
+ * `verifyAccountToken` are declared `?: never` below so re-adding one is a COMPILE
+ * ERROR rather than a silent leak. Flags derived from a secret (`twoFactorEnabled`,
+ * `passwordUpdatedAt`) are fine — they carry no secret value.
+ *
+ * ⚠️ THE SAME BAN COVERS `provablyFairServerSeed` / `provablyFairNextServerSeed`.
+ * Those are the UNREVEALED halves of the provable-fairness commitment: the player
+ * is shown only their sha512 hashes, and a seed goes public only once rotation
+ * retires it. Holding an unrevealed seed lets someone predict outcomes before the
+ * round is played, so leaking one breaks the fairness PROOF, not just privacy.
+ * `provablyFairClientSeed` and `provablyFairCurrentNonce` stay — both are already
+ * disclosed to the player, so neither is secret.
+ *
+ * ⚠️ `twoFactorType`, `disabledUntil` and `passwordUpdatedAt` WERE REMOVED
+ * 2026-09-28 because the casino-api columns behind them were dropped: gb-member-api
+ * owns the cool-off restriction and the password timestamp, and `two_factor_type`
+ * had no writer at all. They are removed rather than kept as permanent nulls so no
+ * consumer can start depending on a field nothing will ever populate again.
+ *
+ * ⚠️ REMOVING A FIELD HERE IS SOURCE-COMPATIBLE BUT NOT WIRE-BREAKING, and that is
+ * deliberate: during a rolling deploy an OLDER casino-api still publishes all three
+ * keys. Consumers must keep ignoring unknown keys — do NOT add strict validation
+ * that would reject those in-flight messages.
+ */
 export interface RegisterData {
   memberId: number;
   memberGuid: string;
@@ -93,7 +124,32 @@ export interface RegisterData {
   fireblocksVaultId?: string | null;
   referralCode?: string | null;
   walletAddress?: string | null;
-  password?: string | null;
+
+  // --- Forbidden credential fields (see the banner above) ---------------------
+  // `?: never` (not "removed") so a re-add fails to compile instead of silently
+  // re-opening the leak. Only `undefined` is assignable.
+  /** @deprecated FORBIDDEN — bcrypt hash. Never publish. */
+  password?: never;
+  /** @deprecated FORBIDDEN — account-verification token. Never publish. */
+  verifyAccountToken?: never;
+  /** @deprecated FORBIDDEN — TOTP shared secret. Never publish. */
+  twoFactorSecret?: never;
+  /** @deprecated FORBIDDEN — password-reset token. Never publish. */
+  forgotPasswordToken?: never;
+  /** @deprecated FORBIDDEN — one-time 2FA code. Never publish. */
+  twoFactorVerifyOtp?: never;
+  /**
+   * @deprecated FORBIDDEN — UNREVEALED provably-fair server seed (the active one).
+   * Only `sha512(...)` of it is ever shown to the player; the raw value predicts
+   * future round outcomes. Never publish.
+   */
+  provablyFairServerSeed?: never;
+  /**
+   * @deprecated FORBIDDEN — UNREVEALED provably-fair NEXT server seed. Same rule.
+   * Never publish.
+   */
+  provablyFairNextServerSeed?: never;
+  // ---------------------------------------------------------------------------
   role?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -106,20 +162,15 @@ export interface RegisterData {
   gender?: string | null;
   isActive?: number | null;
   isVerified?: number | null;
-  verifyAccountToken?: string | null;
   docType?: string | null;
-  twoFactorSecret?: string | null;
   twoFactorEnabled?: number | null;
   kycVerified?: number | null;
-  forgotPasswordToken?: string | null;
   frontIdentityMediaId?: number | null;
   backIdentityMediaId?: number | null;
   ghostModeEnabled?: boolean | null;
   fiatView?: boolean | null;
   hideZeroBalance?: boolean | null;
   emailMarketing?: boolean | null;
-  twoFactorVerifyOtp?: string | null;
-  twoFactorType?: string | null;
   isAffiliatePartner?: boolean | null;
   earlyAccessCode?: string | null;
   tier?: string | null;
@@ -173,9 +224,7 @@ export interface RegisterData {
   loyaltyWeeklyBonusAmount?: number | null;
   loyaltyMonthlyBonusAmount?: number | null;
   provablyFairClientSeed?: string | null;
-  provablyFairServerSeed?: string | null;
   provablyFairCurrentNonce?: number | null;
-  provablyFairNextServerSeed?: string | null;
   bonusCouponAmountUSD?: number | null;
   levelUpTempBonus?: number | null;
   selfExclusionTill?: string | null;
@@ -183,8 +232,6 @@ export interface RegisterData {
   bannedReason?: string | null;
   geoBlockDisabled?: boolean | null;
   randomIpEnabled?: boolean | null;
-  disabledUntil?: string | null;
-  passwordUpdatedAt?: string | null;
   updatedAt?: string | null;
   metamaskAddress?: string | null;
   telegramId?: string | null;

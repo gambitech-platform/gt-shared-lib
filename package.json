@@ -1,5 +1,5 @@
 {
-  "name": "ybc-shared-lib",
+  "name": "gt-shared-lib",
   "version": "1.0.0",
   "description": "Simple Kafka SDK for Casino platform",
   "main": "./dist/index.js",
