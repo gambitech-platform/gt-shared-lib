@@ -62,6 +62,21 @@ export interface TransactionData {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   completedAt: string | null;
+  // Post-write balances of the player accounts this transaction touched, each
+  // with its `ledger_entries.id` (a decimal string — bigint) as the ordering key.
+  // null when that account was untouched; absent on frames produced before 2026-10.
+  /** Post-write balance of `player:{memberId}` (spendable). */
+  availableAfter?: string | null;
+  /** `ledger_entries.id` of the `player:{memberId}` leg. */
+  availableEntryId?: string | null;
+  /** Post-write balance of `player:{memberId}:locked`. */
+  lockedAfter?: string | null;
+  /** `ledger_entries.id` of the `player:{memberId}:locked` leg. */
+  lockedEntryId?: string | null;
+  /** Post-write balance of `player:{memberId}:vault`. */
+  vaultAfter?: string | null;
+  /** `ledger_entries.id` of the `player:{memberId}:vault` leg. */
+  vaultEntryId?: string | null;
 }
 
 // --- User event payloads ---
