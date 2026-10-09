@@ -47,25 +47,26 @@ describe('SdkConsumer', () => {
 
   describe('subscribe', () => {
     it('should subscribe to the correct topic', async () => {
-      await consumer.subscribe(FinancialEvent.Win, vi.fn());
+      await consumer.subscribe(FinancialEvent.Transaction, vi.fn());
 
       expect(mockConsumer.subscribe).toHaveBeenCalledWith({
-        topic: 'financial-event.win',
+        topic: 'financial-event.transaction',
         fromBeginning: false,
       });
     });
 
     it('should pass fromBeginning option', async () => {
-      await consumer.subscribe(FinancialEvent.Win, vi.fn(), { fromBeginning: true });
+      await consumer.subscribe(FinancialEvent.Transaction, vi.fn(), { fromBeginning: true });
 
       expect(mockConsumer.subscribe).toHaveBeenCalledWith({
-        topic: 'financial-event.win',
+        topic: 'financial-event.transaction',
         fromBeginning: true,
       });
     });
 
     it('should call consumer.run with eachMessage handler', async () => {
-      await consumer.subscribe(FinancialEvent.Win, vi.fn());
+      await consumer.subscribe(FinancialEvent.Transaction, vi.fn());
+      await consumer.run();
 
       expect(mockConsumer.run).toHaveBeenCalledOnce();
       const runConfig = mockConsumer.run.mock.calls[0][0];
@@ -76,6 +77,7 @@ describe('SdkConsumer', () => {
     it('should deserialize and pass message to handler', async () => {
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -103,6 +105,7 @@ describe('SdkConsumer', () => {
     it('should handle null message key', async () => {
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Logout, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -123,6 +126,7 @@ describe('SdkConsumer', () => {
     it('should handle null message value', async () => {
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Logout, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -143,6 +147,7 @@ describe('SdkConsumer', () => {
     it('should convert message headers to strings', async () => {
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -163,6 +168,7 @@ describe('SdkConsumer', () => {
     it('should default timestamp to empty string when undefined', async () => {
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -184,6 +190,7 @@ describe('SdkConsumer', () => {
       const handler = vi.fn().mockRejectedValueOnce(new Error('handler boom'));
 
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await expect(
@@ -207,6 +214,7 @@ describe('SdkConsumer', () => {
       const handler = vi.fn().mockRejectedValueOnce(new Error('handler boom'));
 
       await swallowConsumer.subscribe(MemberEvent.Login, handler);
+      await swallowConsumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -231,7 +239,8 @@ describe('SdkConsumer', () => {
 
   describe('concurrency', () => {
     it('should use default concurrency of 1', async () => {
-      await consumer.subscribe(FinancialEvent.Win, vi.fn());
+      await consumer.subscribe(FinancialEvent.Transaction, vi.fn());
+      await consumer.run();
 
       const runConfig = mockConsumer.run.mock.calls[0][0];
       expect(runConfig.partitionsConsumedConcurrently).toBe(1);
@@ -239,7 +248,8 @@ describe('SdkConsumer', () => {
 
     it('should use custom concurrency when provided', async () => {
       const concurrentConsumer = new SdkConsumer(mockConsumer as any, undefined, 5);
-      await concurrentConsumer.subscribe(FinancialEvent.Win, vi.fn());
+      await concurrentConsumer.subscribe(FinancialEvent.Transaction, vi.fn());
+      await concurrentConsumer.run();
 
       const runConfig = mockConsumer.run.mock.calls[0][0];
       expect(runConfig.partitionsConsumedConcurrently).toBe(5);
@@ -289,11 +299,13 @@ describe('SdkConsumer', () => {
 
     it('should log info on consumer start with topics and concurrency', async () => {
       const c = new SdkConsumer(mockConsumer as any, undefined, 3, undefined, mockLogger);
-      await c.subscribe(FinancialEvent.Win, vi.fn());
+      await c.subscribe(FinancialEvent.Transaction, vi.fn());
+      // 'Consumer starting' is logged by run(), not subscribe() — the two were split.
+      await c.run();
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Consumer starting',
-        { topics: ['financial-event.win'], concurrency: 3 },
+        { topics: ['financial-event.transaction'], concurrency: 3 },
       );
     });
 
@@ -301,6 +313,7 @@ describe('SdkConsumer', () => {
       const handler = vi.fn();
       const c = new SdkConsumer(mockConsumer as any, undefined, undefined, undefined, mockLogger);
       await c.subscribe(MemberEvent.Login, handler);
+      await c.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await eachMessage({
@@ -335,6 +348,7 @@ describe('SdkConsumer', () => {
       const handler = vi.fn().mockRejectedValueOnce(new Error('handler boom'));
       const c = new SdkConsumer(mockConsumer as any, undefined, undefined, true, mockLogger);
       await c.subscribe(MemberEvent.Login, handler);
+      await c.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       await expect(
@@ -369,7 +383,7 @@ describe('SdkConsumer', () => {
 
       const c = new SdkConsumer(mockConsumer as any);
       await c.connect();
-      await c.subscribe(FinancialEvent.Win, vi.fn());
+      await c.subscribe(FinancialEvent.Transaction, vi.fn());
       await c.disconnect();
 
       expect(consoleSpy).not.toHaveBeenCalled();

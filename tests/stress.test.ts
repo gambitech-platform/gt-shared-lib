@@ -88,10 +88,6 @@ describe('Stress Tests', () => {
     it('should handle rapid topic switching across all topics', async () => {
       const topics = [
         { topic: FinancialEvent.Transaction, value: { memberId: 'u1', amount: 1, currency: 'USD', transactionId: 'tx' } },
-        { topic: FinancialEvent.Win, value: { memberId: 'u1', amount: 1, gameId: 'g1' } },
-        { topic: FinancialEvent.Loss, value: { memberId: 'u1', amount: 1, gameId: 'g1' } },
-        { topic: FinancialEvent.Deposit, value: { memberId: 'u1', amount: 1, currency: 'USD', method: 'card' } },
-        { topic: FinancialEvent.Withdrawal, value: { memberId: 'u1', amount: 1, currency: 'USD', method: 'bank' } },
         { topic: MemberEvent.Login, value: { memberId: 'u1', ip: '1.1.1.1' } },
         { topic: MemberEvent.Logout, value: { memberId: 'u1' } },
         { topic: MemberEvent.Register, value: { memberId: 'u1', email: 'a@b.com' } },
@@ -130,7 +126,7 @@ describe('Stress Tests', () => {
 
       for (let i = 0; i < 100; i++) {
         try {
-          await producer.send(FinancialEvent.Win, {
+          await producer.send(FinancialEvent.Transaction, {
             key: `u-${i}`,
             value: { memberId: `u-${i}`, amount: i * 10, gameId: `g-${i}` },
           });
@@ -155,6 +151,7 @@ describe('Stress Tests', () => {
       const handler = vi.fn((msg: any) => { received.push(msg); });
 
       await consumer.subscribe(FinancialEvent.Transaction, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       const count = 10_000;
@@ -191,6 +188,7 @@ describe('Stress Tests', () => {
       const handler = vi.fn().mockRejectedValue(new Error('handler crash'));
 
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       const count = 1_000;
@@ -220,6 +218,7 @@ describe('Stress Tests', () => {
 
       const handler = vi.fn();
       await consumer.subscribe(ServerEvent.Crash, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       const largeError = 'x'.repeat(1_000_000); // 1MB string
@@ -246,6 +245,7 @@ describe('Stress Tests', () => {
 
       const handler = vi.fn();
       await consumer.subscribe(MemberEvent.Login, handler);
+      await consumer.run();
 
       const eachMessage = mockConsumer.run.mock.calls[0][0].eachMessage;
       const headers: Record<string, Buffer> = {};
@@ -280,6 +280,8 @@ describe('Stress Tests', () => {
         const consumer = new SdkConsumer(mock as any, undefined, 3);
         const handler = vi.fn();
         await consumer.subscribe(FinancialEvent.Transaction, handler);
+        // subscribe() only registers the handler; run() is what installs eachMessage.
+        await consumer.run();
         consumers.push({ consumer, mock, handler });
       }
 

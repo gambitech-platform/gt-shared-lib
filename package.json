@@ -1,14 +1,20 @@
 {
   "name": "gt-shared-lib",
   "version": "1.0.0",
-  "description": "Simple Kafka SDK for Casino platform",
+  "description": "Kafka SDK + the platform's shared NestJS gateway-identity guard for the Casino platform",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./nest-auth": {
+      "types": "./dist/nest-auth/index.d.ts",
+      "import": "./dist/nest-auth/index.mjs",
+      "require": "./dist/nest-auth/index.js"
     }
   },
   "files": [
@@ -30,10 +36,47 @@
     "kafkajs": "^2.2.4"
   },
   "devDependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/graphql": "^13.0.0",
     "@types/node": "^25.2.3",
+    "graphql": "^16.9.0",
+    "jose": "^6.1.3",
+    "reflect-metadata": "^0.2.2",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "typesVersions": {
+    "*": {
+      "nest-auth": [
+        "./dist/nest-auth/index.d.ts"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/graphql": "^13.0.0",
+    "graphql": "^16.9.0",
+    "jose": "^6.1.3"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/graphql": {
+      "optional": true
+    },
+    "graphql": {
+      "optional": true
+    },
+    "jose": {
+      "optional": true
+    }
   }
 }
